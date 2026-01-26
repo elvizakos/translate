@@ -7,11 +7,27 @@ path="/translate"
 sLang="auto"
 dLang="el"
 
-alternatives="1"
+alternatives="2"
 
 format="text"
 
 apiKey=""
+
+
+function getLangFullTitle () {
+	langsS=( "en" "de" "el" "ru" "tu" )
+	langsT=(
+		"English"
+		"Deutsch"
+		"Ελληνικά"
+		"Russian"
+		"Turkish"
+	)
+	for i in "${!langsS[@]}"; do
+		[ "${langsS[$i]}" == "$1" ] && { echo -n "${langsT[$i]}"; return 0 ; }
+	done
+	return 1
+}
 
 if [ "$#" -gt "0" ]; then
 
@@ -34,4 +50,18 @@ q="$(echo -n $q | jq -R -s -c)"
 
 resp="$(curl -sS -H 'Content-Type: application/json' -X POST --data "{\"q\":$q,\"source\":\"$sLang\",\"target\":\"$dLang\",\"format\":\"$format\",\"alternatives\":\"$alternatives\",\"api_key\":\"$apiKey\"}" http://libretranslate.rpi5.home.lan/translate)"
 
-echo "$resp" | jq -r '.["translatedText"]'
+echo "$q" | jq -r
+echo ""
+echo -n "[ "
+getLangFullTitle "$(echo "$resp" | jq -r '.detectedLanguage.language')"
+echo -en " -> \e[1m"
+getLangFullTitle "$dLang"
+echo -e "\e[m ]"
+echo ""
+echo -e "\e[1m$(echo -n "$resp" | jq -r '.translatedText')\e[m"
+echo ""
+echo "Εναλλακτικές μεταφράσεις: "
+echo ""
+while read i; do
+	echo -e "	$i\n"	
+done < <(echo "$resp" | jq -r '.alternatives[]')
