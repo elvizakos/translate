@@ -15,14 +15,23 @@ apiKey=""
 
 
 function getLangFullTitle () {
-	langsS=( "en" "de" "el" "ru" "tu" )
-	langsT=(
+
+	local langsS=( "en" "de" "el" "ru" "tu" )
+	local langsE=(
 		"English"
-		"Deutsch"
-		"Ελληνικά"
+		"German"
+		"Greek"
 		"Russian"
 		"Turkish"
 	)
+	local langsT=(
+		"English"
+		"Deutsch"
+		"Ελληνικά"
+		"Русский"
+		"Türkçe"
+	)
+
 	for i in "${!langsS[@]}"; do
 		[ "${langsS[$i]}" == "$1" ] && { echo -n "${langsT[$i]}"; return 0 ; }
 	done
@@ -46,22 +55,30 @@ else
 	q="$1"
 fi
 
+ping -c1 "$host" > /dev/null 2>&1 || {
+	[ "$sLang" == "auto" ] && sLang=""
+	echo "$q" | trans "$sLang:$dLang"
+	exit $?
+}
+
 q="$(echo -n $q | jq -R -s -c)"
 
 resp="$(curl -sS -H 'Content-Type: application/json' -X POST --data "{\"q\":$q,\"source\":\"$sLang\",\"target\":\"$dLang\",\"format\":\"$format\",\"alternatives\":\"$alternatives\",\"api_key\":\"$apiKey\"}" http://libretranslate.rpi5.home.lan/translate)"
 
-echo "$q" | jq -r
+q="$(echo "$q" | jq -r)"
+
+echo "$q"
 echo ""
+echo -e "\e[1m$(echo -n "$resp" | jq -r '.translatedText')\e[m"
+echo ""
+echo -e "Μεταφράσεις του \e[4m$q\e[m"
 echo -n "[ "
 getLangFullTitle "$(echo "$resp" | jq -r '.detectedLanguage.language')"
 echo -en " -> \e[1m"
 getLangFullTitle "$dLang"
 echo -e "\e[m ]"
 echo ""
-echo -e "\e[1m$(echo -n "$resp" | jq -r '.translatedText')\e[m"
-echo ""
-echo "Εναλλακτικές μεταφράσεις: "
-echo ""
+echo -e "\e[4m$q\e[m"
 while read i; do
-	echo -e "	$i\n"	
+	echo -e "	\e[1m$i\e[m"
 done < <(echo "$resp" | jq -r '.alternatives[]')
