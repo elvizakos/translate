@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 
 protocol="http"
-host="libretranslate.rpi5.home.lan"
+hosts=(
+	# "qtranslator.rpi5.home.lan"
+	"libretranslate.rpi5.home.lan"
+)
+host=auto
+#host=libretranslate.rpi5.home.lan
 path="/translate"
+health="/health"
 
 sLang="auto"
 dLang="el"
@@ -13,6 +19,19 @@ format="text"
 
 apiKey=""
 
+
+function getFirstWorkingService () {
+	for i in $@; do
+		ping -c1 "$i" > /dev/null 2>&1 || continue
+		ret="$(curl -sS -H 'Content-Type: application/json' "$i/health" | jq -r '.status')"
+		[ "$ret" == "ok" ] && {
+			echo "$i"
+			return 0
+		}
+	done
+	echo "false"
+	return 1
+}
 
 function getLangFullTitle () {
 
@@ -55,7 +74,16 @@ else
 	q="$1"
 fi
 
-ping -c1 "$host" > /dev/null 2>&1 || {
+shift
+
+if [ "$#" -gt 0 ]; then
+	host="$1"
+fi
+
+[ "$host" == "auto" ] && host="$(getFirstWorkingService ${hosts[@]})"
+
+# ping -c1 "$host" > /dev/null 2>&1 || {
+[ "$host" == "false" ] && {
 	[ "$sLang" == "auto" ] && sLang=""
 	echo "$q" | trans "$sLang:$dLang"
 	exit $?
